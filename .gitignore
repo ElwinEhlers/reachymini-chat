@@ -40,3 +40,8 @@ htmlcov/
 # macOS / Linux
 .DS_Store
 *~
+
+# Lokale Metadaten
+.claude/
+.app_metadata/
+agents.local.md
