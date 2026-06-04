@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Reachy Memory — Status</title>
+    <style>
+        :root {
+            --bg: #1a1a2e;
+            --bg-secondary: #16213e;
+            --surface: #0f3460;
+            --accent: #e94560;
+            --text: #eee;
+            --text-muted: #aaa;
+            --bot-bg: #0f3460;
+            --tool-bg: #1a1a3e;
+            --border: #2a2a4e;
+            --radius: 12px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        .app {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg-secondary);
+        }
+
+        header h1 { font-size: 18px; font-weight: 600; }
+
+        .header-right { display: flex; align-items: center; gap: 10px; }
+
+        .badge {
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-weight: 500;
+        }
+        .badge-ok      { background: #1b4332; color: #4ce0b3; }
+        .badge-error   { background: #4a1525; color: #ff5c70; }
+        .badge-loading { background: #3a3000; color: #ffb547; }
+
+        .btn-refresh {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            padding: 4px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .btn-refresh:hover { border-color: var(--accent); color: var(--accent); }
+
+        main {
+            flex: 1;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            overflow-y: auto;
+        }
+
+        /* CORS-Hinweis-Banner */
+        .cors-banner {
+            background: #3a3000;
+            color: #ffb547;
+            border-radius: var(--radius);
+            padding: 12px 16px;
+            font-size: 13px;
+            display: none;
+            line-height: 1.6;
+        }
+        .cors-banner a {
+            color: #4ce0b3;
+            font-weight: 600;
+        }
+
+        /* Status-Banner */
+        .status-banner {
+            border-radius: var(--radius);
+            padding: 12px 16px;
+            font-size: 13px;
+            display: none;
+        }
+        .status-banner.ok    { background: #1b4332; color: #4ce0b3; }
+        .status-banner.error { background: #4a1525; color: #ff5c70; }
+
+        /* Stat-Kacheln */
+        .stats-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .stat-card {
+            flex: 1;
+            min-width: 140px;
+            background: var(--bot-bg);
+            border-radius: var(--radius);
+            border-bottom-left-radius: 4px;
+            padding: 14px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .stat-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+        .stat-value { font-size: 28px; font-weight: 700; color: var(--text); }
+        .stat-sub   { font-size: 11px; color: var(--text-muted); }
+
+        /* Karten */
+        .card {
+            background: var(--bot-bg);
+            border-radius: var(--radius);
+            border-bottom-left-radius: 4px;
+            padding: 14px 16px;
+        }
+
+        .card h2 {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 12px;
+        }
+
+        /* sqlitebrowser-Zeile */
+        .db-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .code-block {
+            background: var(--tool-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 7px 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            flex: 1;
+        }
+
+        .code-block code {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 12px;
+            color: var(--text);
+        }
+
+        .btn-copy {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            padding: 2px 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 11px;
+            flex-shrink: 0;
+            transition: border-color 0.15s, color 0.15s;
+        }
+        .btn-copy:hover  { border-color: var(--accent); color: var(--accent); }
+        .btn-copy.copied { border-color: #4ce0b3; color: #4ce0b3; }
+
+        /* Personen */
+        .person-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 13px;
+        }
+        .person-row:last-child { border-bottom: none; }
+
+        .person-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--surface);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+            flex-shrink: 0;
+        }
+
+        .person-info { flex: 1; }
+        .person-name { font-weight: 600; }
+        .person-meta { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+        .attr-tag {
+            display: inline-block;
+            background: var(--tool-bg);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 1px 6px;
+            font-size: 11px;
+            margin: 2px 2px 0 0;
+            color: var(--text-muted);
+        }
+
+        /* Nachrichten */
+        .msg-row {
+            display: flex;
+            gap: 8px;
+            padding: 6px 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 13px;
+            align-items: flex-start;
+        }
+        .msg-row:last-child { border-bottom: none; }
+
+        .msg-role {
+            font-size: 10px;
+            font-weight: 600;
+            padding: 2px 6px;
+            border-radius: 4px;
+            flex-shrink: 0;
+            margin-top: 2px;
+            min-width: 60px;
+            text-align: center;
+        }
+        .role-user      { background: #533483; color: #ddd; }
+        .role-assistant { background: var(--surface); color: #ddd; }
+
+        .msg-content { flex: 1; line-height: 1.4; color: var(--text); }
+        .msg-time    { font-size: 10px; color: var(--text-muted); flex-shrink: 0; margin-top: 3px; }
+
+        /* Fakten */
+        .fact-row {
+            display: flex;
+            gap: 8px;
+            padding: 6px 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 13px;
+            align-items: center;
+        }
+        .fact-row:last-child { border-bottom: none; }
+        .fact-icon { color: var(--accent); flex-shrink: 0; }
+
+        /* Leer-Zustand */
+        .empty {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 13px;
+            padding: 16px 0;
+        }
+
+        footer {
+            padding: 10px 16px;
+            border-top: 1px solid var(--border);
+            background: var(--bg-secondary);
+            font-size: 12px;
+            color: var(--text-muted);
+            text-align: center;
+        }
+
+        @media (max-width: 600px) {
+            .stats-row { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+<div class="app">
+
+    <header>
+        <h1>Reachy Memory</h1>
+        <div class="header-right">
+            <span id="status-badge" class="badge badge-loading">laden…</span>
+            <button class="btn-refresh" onclick="load()">↻ Aktualisieren</button>
+        </div>
+    </header>
+
+    <main>
+        <!-- CORS-Hinweis (nur bei file://) -->
+        <div id="cors-banner" class="cors-banner">
+            <strong>Hinweis:</strong> Diese Seite läuft lokal (<code>file://</code>) — der Browser blockiert den API-Zugriff (CORS).<br>
+            Für Live-Daten die Seite über die laufende App öffnen:
+            <a href="http://localhost:8042/static/memory_status.html" target="_blank">
+                http://localhost:8042/static/memory_status.html
+            </a>
+        </div>
+
+        <!-- Status-Banner (grün = online, rot = offline) -->
+        <div id="status-banner" class="status-banner"></div>
+
+        <!-- Datenbank direkt öffnen -->
+        <div class="card">
+            <h2>Datenbank</h2>
+            <div class="db-row">
+                <div class="code-block">
+                    <code>sqlitebrowser /home/sbin/reachy/memory/reachy.db</code>
+                    <button class="btn-copy" onclick="copy(this, 'sqlitebrowser /home/sbin/reachy/memory/reachy.db')">Kopieren</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistik-Kacheln -->
+        <div class="stats-row">
+            <div class="stat-card">
+                <span class="stat-label">Personen</span>
+                <span class="stat-value" id="stat-persons">—</span>
+                <span class="stat-sub">bekannt / unbekannt</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Gespräche</span>
+                <span class="stat-value" id="stat-convs">—</span>
+                <span class="stat-sub">seit Erststart</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Nachrichten</span>
+                <span class="stat-value" id="stat-msgs">—</span>
+                <span class="stat-sub">gesamt gespeichert</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Fakten</span>
+                <span class="stat-value" id="stat-facts">—</span>
+                <span class="stat-sub">globales Wissen</span>
+            </div>
+        </div>
+
+        <!-- Personen -->
+        <div class="card">
+            <h2>Personen</h2>
+            <div id="persons-list"><div class="empty">Keine Daten</div></div>
+        </div>
+
+        <!-- Fakten -->
+        <div class="card">
+            <h2>Globale Fakten</h2>
+            <div id="facts-list"><div class="empty">Keine Fakten gespeichert</div></div>
+        </div>
+
+        <!-- Letzte Nachrichten -->
+        <div class="card">
+            <h2>Letzte Nachrichten</h2>
+            <div id="messages-list"><div class="empty">Keine Daten</div></div>
+        </div>
+    </main>
+
+    <footer id="footer">Quelle: http://localhost:8042/memory</footer>
+</div>
+
+<script>
+const API = 'http://localhost:8042/memory';
+
+// Zeige CORS-Hinweis wenn Seite lokal geöffnet wird
+if (window.location.protocol === 'file:') {
+    document.getElementById('cors-banner').style.display = 'block';
+}
+
+function fmt(dt) {
+    if (!dt) return '';
+    return dt.replace('T', ' ').substring(0, 16);
+}
+
+function copy(btn, text) {
+    navigator.clipboard.writeText(text).then(() => {
+        btn.textContent = 'Kopiert!';
+        btn.classList.add('copied');
+        setTimeout(() => { btn.textContent = 'Kopieren'; btn.classList.remove('copied'); }, 1500);
+    });
+}
+
+function load() {
+    const badge = document.getElementById('status-badge');
+    badge.className = 'badge badge-loading';
+    badge.textContent = 'laden…';
+
+    fetch(API)
+        .then(r => r.json())
+        .then(data => {
+            badge.className = 'badge badge-ok';
+            badge.textContent = 'online';
+            const b = document.getElementById('status-banner');
+            b.className = 'status-banner ok';
+            b.textContent = '✓ Chat-App läuft — Daten geladen';
+            b.style.display = 'block';
+            render(data);
+        })
+        .catch(() => {
+            badge.className = 'badge badge-error';
+            badge.textContent = 'offline';
+            const b = document.getElementById('status-banner');
+            b.className = 'status-banner error';
+            b.textContent = 'Chat-App nicht erreichbar — App starten und Seite aktualisieren.';
+            b.style.display = 'block';
+        });
+}
+
+function render(data) {
+    document.getElementById('stat-persons').textContent = (data.persons || []).length;
+    document.getElementById('stat-convs').textContent   = data.conversation_count ?? '—';
+    document.getElementById('stat-msgs').textContent    = data.message_count ?? '—';
+    document.getElementById('stat-facts').textContent   = (data.facts || []).length;
+
+    const pList = document.getElementById('persons-list');
+    if (!data.persons || data.persons.length === 0) {
+        pList.innerHTML = '<div class="empty">Keine Personen</div>';
+    } else {
+        pList.innerHTML = data.persons.map(p => {
+            const known = p.name && p.name !== 'Unbekannt';
+            const attrs = p.attributes && Object.keys(p.attributes).length > 0
+                ? Object.entries(p.attributes).map(([k,v]) => `<span class="attr-tag">${k}: ${v}</span>`).join('')
+                : '<span style="color:var(--text-muted);font-size:11px">keine Attribute</span>';
+            return `
+            <div class="person-row">
+                <div class="person-avatar">${known ? '🧑' : '👤'}</div>
+                <div class="person-info">
+                    <div class="person-name">${p.name || 'Unbekannt'} <span style="color:var(--text-muted);font-weight:400;font-size:11px">#${p.id}</span></div>
+                    <div class="person-meta">Zuletzt gesehen: ${fmt(p.last_seen) || '—'}</div>
+                    <div style="margin-top:4px">${attrs}</div>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    const fList = document.getElementById('facts-list');
+    if (!data.facts || data.facts.length === 0) {
+        fList.innerHTML = '<div class="empty">Keine Fakten gespeichert</div>';
+    } else {
+        fList.innerHTML = data.facts.map(f => `
+            <div class="fact-row">
+                <span class="fact-icon">📌</span>
+                <span>${f.content}</span>
+            </div>`).join('');
+    }
+
+    const mList = document.getElementById('messages-list');
+    if (!data.recent_messages || data.recent_messages.length === 0) {
+        mList.innerHTML = '<div class="empty">Keine Nachrichten</div>';
+    } else {
+        mList.innerHTML = data.recent_messages.map(m => {
+            const content = m.content.length > 120 ? m.content.substring(0, 120) + '…' : m.content;
+            const roleClass = m.role === 'user' ? 'role-user' : 'role-assistant';
+            const roleLabel = m.role === 'user' ? 'User' : 'Reachy';
+            return `
+            <div class="msg-row">
+                <span class="msg-role ${roleClass}">${roleLabel}</span>
+                <span class="msg-content">${content}</span>
+                <span class="msg-time">${fmt(m.created_at)}</span>
+            </div>`;
+        }).join('');
+    }
+
+    document.getElementById('footer').textContent =
+        `Quelle: ${API} · Stand: ${new Date().toLocaleTimeString('de-DE')}`;
+}
+
+load();
+</script>
+</body>
+</html>

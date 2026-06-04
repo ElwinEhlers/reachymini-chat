@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Reachy Chat</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="app">
+        <header class="header">
+            <div class="header-left">
+                <h1>Reachy Chat</h1>
+            </div>
+            <div class="header-right">
+                <span id="status-badge" class="badge badge-loading">connecting...</span>
+                <span id="model-name" class="model-name"></span>
+                <button id="clear-btn" class="btn-clear" title="Clear chat">Clear</button>
+            </div>
+        </header>
+
+        <main id="messages" class="messages">
+            <div class="welcome-msg">
+                <p>Chat with Reachy Mini. The robot can dance, show emotions, and move its head.</p>
+            </div>
+        </main>
+
+        <div id="voice-status-bar" class="voice-status-bar hidden">
+            <span id="voice-status-text"></span>
+        </div>
+
+        <footer class="input-area">
+            <button id="mic-btn" class="btn-mic" title="Spracheingabe starten">🎤</button>
+            <textarea id="input" placeholder="Type a message..." rows="1" autofocus></textarea>
+            <button id="send-btn" class="btn-send" disabled>Send</button>
+            <button id="mute-btn" class="btn-mute" title="TTS stumm schalten">🔊</button>
+        </footer>
+    </div>
+    <script src="/static/main.js"></script>
+</body>
+</html>

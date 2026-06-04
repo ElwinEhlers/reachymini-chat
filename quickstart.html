@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Reachy Mini — Quickstart</title>
+    <style>
+        :root {
+            --bg: #1a1a2e;
+            --bg-secondary: #16213e;
+            --surface: #0f3460;
+            --accent: #e94560;
+            --text: #eee;
+            --text-muted: #aaa;
+            --bot-bg: #0f3460;
+            --tool-bg: #1a1a3e;
+            --border: #2a2a4e;
+            --radius: 12px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        .app {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        /* Header — identisch zum Chat */
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg-secondary);
+        }
+
+        header h1 { font-size: 18px; font-weight: 600; }
+
+        .badge {
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-weight: 500;
+            background: #1b4332;
+            color: #4ce0b3;
+        }
+
+        /* Content */
+        main {
+            flex: 1;
+            padding: 20px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            overflow-y: auto;
+        }
+
+        /* Karten */
+        .card {
+            background: var(--bot-bg);
+            border-radius: var(--radius);
+            border-bottom-left-radius: 4px;
+            padding: 16px 18px;
+        }
+
+        .card h2 {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 14px;
+        }
+
+        /* Schritt-Tabelle */
+        .steps { display: flex; flex-direction: column; gap: 10px; }
+
+        .step {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .step-num {
+            min-width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: var(--accent);
+            color: white;
+            font-size: 12px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 2px;
+            flex-shrink: 0;
+        }
+
+        .step-body { flex: 1; }
+
+        .step-label {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+
+        /* Code-Blöcke */
+        .code-block {
+            background: var(--tool-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 8px 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 4px;
+        }
+
+        .code-block code {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 13px;
+            color: var(--text);
+            flex: 1;
+        }
+
+        .btn-copy {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            padding: 2px 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 11px;
+            flex-shrink: 0;
+            transition: border-color 0.15s, color 0.15s;
+        }
+
+        .btn-copy:hover { border-color: var(--accent); color: var(--accent); }
+        .btn-copy.copied { border-color: #4ce0b3; color: #4ce0b3; }
+
+        .step-url {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .step-url a {
+            color: #4ce0b3;
+            text-decoration: none;
+        }
+
+        .step-url a:hover { text-decoration: underline; }
+
+        /* URL-Karten */
+        .url-grid {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .url-card {
+            flex: 1;
+            min-width: 180px;
+            background: var(--tool-bg);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px 14px;
+            text-decoration: none;
+            color: var(--text);
+            transition: border-color 0.15s;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .url-card:hover { border-color: var(--accent); }
+
+        .url-card .url-title {
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .url-card .url-addr {
+            font-family: monospace;
+            font-size: 12px;
+            color: #4ce0b3;
+        }
+
+        .url-card .url-desc {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        /* Mikrofon-Abschnitt */
+        .mic-steps { display: flex; flex-direction: column; gap: 10px; }
+
+        .mic-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 14px;
+        }
+
+        .mic-icon {
+            font-size: 20px;
+            width: 32px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .mic-arrow {
+            color: var(--text-muted);
+            font-size: 16px;
+        }
+
+        /* Status-Badges */
+        .status-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 14px;
+        }
+
+        .status-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .dot-red    { background: var(--accent); animation: pulse 1.2s ease-in-out infinite; }
+        .dot-yellow { background: #ffb547; }
+        .dot-green  { background: #4ce0b3; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50%       { opacity: 0.4; }
+        }
+
+        /* Footer */
+        footer {
+            padding: 10px 16px;
+            border-top: 1px solid var(--border);
+            background: var(--bg-secondary);
+            font-size: 12px;
+            color: var(--text-muted);
+            text-align: center;
+        }
+
+        @media (max-width: 600px) {
+            .url-grid { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <header>
+            <h1>Reachy Mini — Quickstart</h1>
+            <span class="badge">Referenz</span>
+        </header>
+
+        <main>
+
+            <!-- STARTEN -->
+            <div class="card">
+                <h2>Starten</h2>
+                <div class="steps">
+
+                    <div class="step">
+                        <div class="step-num">1</div>
+                        <div class="step-body">
+                            <div class="step-label">Simulation starten (Daemon)</div>
+                            <div class="code-block">
+                                <code>uv run reachy-mini-daemon --sim</code>
+                                <button class="btn-copy" onclick="copy(this, 'uv run reachy-mini-daemon --sim')">Kopieren</button>
+                            </div>
+                            <div class="code-block">
+                                <code>uv run reachy-mini-daemon --sim --scene minimal</code>
+                                <button class="btn-copy" onclick="copy(this, 'uv run reachy-mini-daemon --sim --scene minimal')">Kopieren</button>
+                            </div>
+                            <div class="step-url">Dashboard: <a href="http://localhost:8000" target="_blank">http://localhost:8000</a></div>
+                        </div>
+                    </div>
+
+                    <div class="step">
+                        <div class="step-num">2</div>
+                        <div class="step-body">
+                            <div class="step-label">Ollama sicherstellen (separates Terminal)</div>
+                            <div class="code-block">
+                                <code>curl http://localhost:11434/v1/models</code>
+                                <button class="btn-copy" onclick="copy(this, 'curl http://localhost:11434/v1/models')">Kopieren</button>
+                            </div>
+                            <div class="step-url">API: <a href="http://localhost:11434" target="_blank">http://localhost:11434</a></div>
+                        </div>
+                    </div>
+
+                    <div class="step">
+                        <div class="step-num">3</div>
+                        <div class="step-body">
+                            <div class="step-label">Chat-App starten <span style="color:var(--text-muted);font-weight:400">(aus reachy_chat/)</span></div>
+                            <div class="code-block">
+                                <code>cd /home/sbin/reachy/reachy_chat</code>
+                                <button class="btn-copy" onclick="copy(this, 'cd /home/sbin/reachy/reachy_chat')">Kopieren</button>
+                            </div>
+                            <div class="code-block">
+                                <code>uv run reachy-chat</code>
+                                <button class="btn-copy" onclick="copy(this, 'uv run reachy-chat')">Kopieren</button>
+                            </div>
+                            <div class="step-url">Chat-UI: <a href="http://localhost:8042" target="_blank">http://localhost:8042</a></div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- URLs -->
+            <div class="card">
+                <h2>URLs</h2>
+                <div class="url-grid">
+                    <a class="url-card" href="http://localhost:8042" target="_blank">
+                        <span class="url-title">💬 Chat-UI</span>
+                        <span class="url-addr">localhost:8042</span>
+                        <span class="url-desc">Browser-Oberfläche der Chat-App</span>
+                    </a>
+                    <a class="url-card" href="http://localhost:8000" target="_blank">
+                        <span class="url-title">🤖 Daemon-Dashboard</span>
+                        <span class="url-addr">localhost:8000</span>
+                        <span class="url-desc">Simulation &amp; Roboter-Status</span>
+                    </a>
+                    <a class="url-card" href="http://localhost:11434" target="_blank">
+                        <span class="url-title">🧠 Ollama</span>
+                        <span class="url-addr">localhost:11434</span>
+                        <span class="url-desc">Lokales LLM (qwen3:8b)</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- MIKROFON -->
+            <div class="card">
+                <h2>Mikrofon (Push-to-Talk)</h2>
+                <div class="mic-steps">
+                    <div class="mic-row">
+                        <span class="mic-icon">🎤</span>
+                        <span><strong>Mikrofon-Knopf gedrückt halten</strong> → sprechen</span>
+                    </div>
+                    <div class="mic-row">
+                        <span class="mic-icon">✋</span>
+                        <span><strong>Loslassen</strong> → Sprache wird erkannt (Whisper STT)</span>
+                    </div>
+                    <div class="mic-row">
+                        <span class="mic-icon">🔊</span>
+                        <span>Antwort wird automatisch vorgelesen (Piper TTS, Deutsch)</span>
+                    </div>
+                    <div class="mic-row">
+                        <span class="mic-icon">🔇</span>
+                        <span>Lautsprecher-Knopf <strong>rechts</strong> schaltet TTS stumm</span>
+                    </div>
+                </div>
+
+                <div class="status-grid">
+                    <div class="status-row">
+                        <div class="status-dot dot-red"></div>
+                        <span><strong>Rot, pulsierend</strong> — hört zu (listening)</span>
+                    </div>
+                    <div class="status-row">
+                        <div class="status-dot dot-yellow"></div>
+                        <span><strong>Gelb</strong> — verarbeitet (STT / LLM läuft)</span>
+                    </div>
+                    <div class="status-row">
+                        <div class="status-dot dot-green"></div>
+                        <span><strong>Grün</strong> — spricht (TTS läuft)</span>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+
+        <footer>
+            Arbeitsverzeichnis: /home/sbin/reachy &nbsp;·&nbsp; Modell: qwen3:8b-q4km &nbsp;·&nbsp; Simulation: MuJoCo
+        </footer>
+    </div>
+
+    <script>
+        function copy(btn, text) {
+            navigator.clipboard.writeText(text).then(() => {
+                btn.textContent = 'Kopiert!';
+                btn.classList.add('copied');
+                setTimeout(() => {
+                    btn.textContent = 'Kopieren';
+                    btn.classList.remove('copied');
+                }, 1500);
+            });
+        }
+    </script>
+</body>
+</html>

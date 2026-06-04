@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.venv/
+*.egg-info/
+build/
+dist/
+
+# Umgebung
+.env
+cache/
+
+# Datenbank (wird zur Laufzeit generiert)
+memory/reachy.db
+memory/reachy.db-shm
+memory/reachy.db-wal
+
+# Große Binärdateien (Voice-Modell, 109 MB — wird via HuggingFace geladen)
+voice/models/*.onnx
+
+# Generierte Berichte
+*.xlsx
+
+# Test-Dateien
+test.wav
+
+# Tools
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# macOS / Linux
+.DS_Store
+*~
