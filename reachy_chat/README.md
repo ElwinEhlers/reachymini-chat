@@ -18,12 +18,12 @@ Browser-basiertes Conversational Interface für den **Reachy Mini Lite** Roboter
 
 ## Voraussetzungen
 
-| Voraussetzung | Hinweis |
+| Voraussetzung | Installieren |
 |---|---|
 | Ubuntu Desktop | Bash, Python 3.10+ |
-| [uv](https://docs.astral.sh/uv/) | Python-Paketmanager |
-| [Ollama](https://ollama.com/) | Lokales LLM-Backend |
-| Reachy Mini SDK | `uv pip install "reachy-mini[mujoco]"` |
+| [uv](https://docs.astral.sh/uv/) | `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
+| [Ollama](https://ollama.com/) | `curl -fsSL https://ollama.com/install.sh \| sh` |
+| Reachy Mini SDK | `uv pip install "reachy-mini[mujoco]"` (nach Repo-Clone) |
 
 **Ollama-Modell installieren** (muss Tool-Calling unterstützen):
 
@@ -210,7 +210,7 @@ Die App unterstützt Push-to-Talk über den Browser. Das Sprachsystem läuft ser
 ### Abhängigkeiten installieren
 
 ```bash
-pip install faster-whisper piper-tts sounddevice silero-vad huggingface-hub
+uv pip install faster-whisper piper-tts sounddevice silero-vad huggingface-hub
 ```
 
 ### Funktionsweise
@@ -231,7 +231,8 @@ pip install faster-whisper piper-tts sounddevice silero-vad huggingface-hub
 ### Standalone-Test (ohne Browser)
 
 ```bash
-/home/sbin/reachy/.venv/bin/python3 /home/sbin/reachy/voice/pipeline.py
+# Im Projektroot (reachymini-chat/)
+uv run python3 voice/pipeline.py
 ```
 
 > **Bekanntes Problem (PipeWire):** `sd.InputStream` bei 16 kHz kann via PipeWire Stille liefern. Fix in `vad.py`: Aufnahme bei nativer Geräterate (44 kHz) mit anschließendem Resampling auf 16 kHz.
