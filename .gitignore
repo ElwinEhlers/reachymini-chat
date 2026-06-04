@@ -45,3 +45,13 @@ htmlcov/
 .claude/
 .app_metadata/
 agents.local.md
+
+# Interne / nicht relevante Dateien
+reachy_chat/README_OLD.md
+reachy_chat/index.html
+reachy_chat/style.css
+reachy_chat/tests/test_openai_realtime.py
+reachy_chat/docs/
+scripts/create_status_report.py
+quickstart.html
+memory_status.html
