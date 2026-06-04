@@ -9,7 +9,7 @@ from piper import PiperVoice
 logger = logging.getLogger(__name__)
 
 VOICE_NAME = "de_DE-thorsten-high"
-MODELS_DIR = Path("/home/sbin/reachy/voice/models")
+MODELS_DIR = Path(__file__).parent / "models"
 
 # HuggingFace repo and file paths for the Thorsten voice
 _HF_REPO = "rhasspy/piper-voices"

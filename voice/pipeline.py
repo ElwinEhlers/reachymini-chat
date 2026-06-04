@@ -1,7 +1,7 @@
 """Voice pipeline: microphone → STT → Ollama → TTS → speaker.
 
 Standalone run:
-    /home/sbin/reachy/.venv/bin/python3 /home/sbin/reachy/voice/pipeline.py
+    uv run python3 voice/pipeline.py   # from project root
 
 WebSocket pipeline is used by the chat app's /ws/voice endpoint.
 """
@@ -10,12 +10,14 @@ import sys
 import logging
 import asyncio
 import threading
+from pathlib import Path
 import numpy as np
 import sounddevice as sd
 
-# Allow importing the memory package from the project root
-if "/home/sbin/reachy" not in sys.path:
-    sys.path.insert(0, "/home/sbin/reachy")
+# Allow importing the memory and voice packages from the project root
+_PROJECT_ROOT = Path(__file__).parent.parent
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
 
 from openai import AsyncOpenAI
 
@@ -43,10 +45,11 @@ def _build_system_prompt() -> str:
         from memory.database import init_db
         from memory.context import build_system_prompt
         init_db()
-        base = open(
-            "/home/sbin/reachy/reachy_chat/src/reachy_chat/profiles"
-            "/_reachy_chat_locked_profile/instructions.txt"
-        ).read()
+        _instructions = (
+            _PROJECT_ROOT / "reachy_chat/src/reachy_chat/profiles"
+            / "_reachy_chat_locked_profile/instructions.txt"
+        )
+        base = _instructions.read_text()
         return build_system_prompt(base, person_id=PLACEHOLDER_PERSON_ID)
     except Exception as exc:
         logger.warning("Could not load memory context: %s", exc)

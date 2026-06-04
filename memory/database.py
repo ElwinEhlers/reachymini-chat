@@ -4,7 +4,7 @@ import sqlite3
 import threading
 from pathlib import Path
 
-DB_PATH = Path("/home/sbin/reachy/memory/reachy.db")
+DB_PATH = Path(__file__).parent / "reachy.db"
 
 _local = threading.local()
 
