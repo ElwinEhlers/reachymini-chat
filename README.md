@@ -14,7 +14,9 @@ Der Roboter versteht natürliche Sprache und kann tanzen, Emotionen zeigen, sein
 | `voice/` | Sprachsystem — Whisper STT, Piper TTS, VAD (Push-to-Talk) |
 | `scripts/` | Hilfsskripte (Setup, Status-Report) |
 
-→ **Vollständige Installationsanleitung:** [`reachy_chat/README.md`](reachy_chat/README.md)
+> [!NOTE]
+> **Vollständige Installationsanleitung** (Installation, Konfiguration, Voice-Setup, eigene Tools):
+> [`reachy_chat/README.md`](reachy_chat/README.md)
 
 ## Voraussetzungen
 
