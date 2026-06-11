@@ -9,23 +9,21 @@ let isSending = false;
 
 // --- Status polling ---
 
+// The top badge shows the voice pipeline state (see setVoiceState). This poll
+// only manages the send button and the model-name indicator.
 async function checkStatus() {
     try {
         const res = await fetch("/status");
         const data = await res.json();
         if (data.connected) {
-            statusBadge.textContent = "connected";
-            statusBadge.className = "badge badge-ok";
             modelNameEl.textContent = data.model || "";
             if (!isSending) sendBtn.disabled = false;
         } else {
-            statusBadge.textContent = "disconnected";
-            statusBadge.className = "badge badge-error";
+            modelNameEl.textContent = "Ollama offline";
             sendBtn.disabled = true;
         }
     } catch {
-        statusBadge.textContent = "offline";
-        statusBadge.className = "badge badge-error";
+        modelNameEl.textContent = "Server offline";
         sendBtn.disabled = true;
     }
 }
@@ -137,10 +135,8 @@ async function sendMessage() {
         addMessage("error", "Connection error: " + err.message);
     }
 
-    // Trigger TTS via voice WebSocket if active and not muted
-    if (voiceWs && voiceWs.readyState === WebSocket.OPEN && !voiceMuted && botText) {
-        voiceWs.send(JSON.stringify({ type: "speak", text: botText }));
-    }
+    // Getippte Nachrichten werden NICHT vorgelesen — TTS nur im Sprach-Flow
+    // (serverseitige Wake-Word-Pipeline). Reine Textantwort hier.
 
     isSending = false;
     sendBtn.disabled = false;
@@ -178,120 +174,68 @@ clearBtn.addEventListener("click", async function() {
         '</div>';
 });
 
-// --- Voice (WebSocket, Push-to-Talk) ---
+// --- Voice (WebSocket status channel for the wake-word pipeline) ---
 
-const micBtn = document.getElementById("mic-btn");
 const muteBtn = document.getElementById("mute-btn");
-const voiceStatusBar = document.getElementById("voice-status-bar");
-const voiceStatusText = document.getElementById("voice-status-text");
 
 let voiceWs = null;
 let voiceMuted = false;
-let voiceRecording = false;
-let micPressed = false;
 
-const VOICE_STATUS_LABELS = {
-    listening:  "🎤 Aufnahme …",
-    processing: "⚙️ Verarbeite …",
-    speaking:   "🔊 Reachy spricht …",
+// Pipeline-Zustand → Badge-Text (Deutsch) + Farbklasse.
+const VOICE_STATES = {
+    idle:       { text: "Warte auf Hey Jarvis…", cls: "badge-idle" },
+    wake_word:  { text: "Wake-Word erkannt",     cls: "badge-wake" },
+    listening:  { text: "Höre zu…",              cls: "badge-listening" },
+    processing: { text: "Verarbeite…",           cls: "badge-processing" },
+    speaking:   { text: "Spricht…",              cls: "badge-speaking" },
 };
 
-function setVoiceStatus(value) {
-    const label = VOICE_STATUS_LABELS[value] || "";
-    if (label) {
-        voiceStatusText.textContent = label;
-        voiceStatusBar.classList.remove("hidden");
-    } else {
-        voiceStatusBar.classList.add("hidden");
-    }
-    micBtn.className = "btn-mic " + (value || "");
+function setVoiceState(value) {
+    const state = VOICE_STATES[value] || VOICE_STATES.idle;
+    statusBadge.textContent = state.text;
+    statusBadge.className = "badge " + state.cls;
 }
 
-function connectVoiceWs(onOpen) {
-    if (voiceWs && (voiceWs.readyState === WebSocket.OPEN || voiceWs.readyState === WebSocket.CONNECTING)) {
-        if (voiceWs.readyState === WebSocket.OPEN) {
-            if (onOpen) onOpen();
-        } else if (onOpen) {
-            voiceWs.addEventListener("open", onOpen, { once: true });
-        }
-        return;
-    }
+function connectVoiceWs() {
     const proto = location.protocol === "https:" ? "wss" : "ws";
     voiceWs = new WebSocket(`${proto}://${location.host}/ws/voice`);
 
-    if (onOpen) {
-        voiceWs.addEventListener("open", onOpen, { once: true });
-    }
+    voiceWs.onopen = function() {
+        // Aktuellen Mute-Zustand mit dem Server synchronisieren.
+        voiceWs.send(JSON.stringify({ type: "set_mute", value: voiceMuted }));
+    };
 
     voiceWs.onmessage = function(event) {
         let msg;
         try { msg = JSON.parse(event.data); } catch { return; }
-        console.log("[voice] ←", msg);
 
         if (msg.type === "status") {
-            setVoiceStatus(msg.value);
-        } else if (msg.type === "transcript" && msg.text) {
-            console.log("[voice] transcript:", msg.text);
-            inputEl.value = msg.text;
-            autoResize();
-            setVoiceStatus(null);
-            sendMessage();
+            setVoiceState(msg.value);
+        } else if (msg.type === "chat" && msg.text) {
+            addMessage(msg.role === "user" ? "user" : "bot", msg.text);
         }
     };
 
     voiceWs.onclose = function() {
         voiceWs = null;
-        voiceRecording = false;
-        micBtn.className = "btn-mic";
-        setVoiceStatus(null);
+        statusBadge.textContent = "Sprachkanal getrennt";
+        statusBadge.className = "badge badge-error";
+        setTimeout(connectVoiceWs, 2000);  // Reconnect
     };
 
     voiceWs.onerror = function() {
-        voiceWs = null;
-        voiceRecording = false;
-        micBtn.className = "btn-mic";
-        setVoiceStatus(null);
+        if (voiceWs) voiceWs.close();
     };
 }
 
-function startRecording() {
-    connectVoiceWs(function() {
-        if (!micPressed) { console.log("[voice] released before WS open, skip"); return; }
-        console.log("[voice] → start_recording");
-        voiceWs.send(JSON.stringify({ type: "start_recording" }));
-        voiceRecording = true;
-    });
-}
-
-function stopRecording() {
-    micPressed = false;
-    console.log("[voice] stopRecording called, voiceRecording=", voiceRecording, "wsState=", voiceWs?.readyState);
-    if (voiceWs && voiceWs.readyState === WebSocket.OPEN && voiceRecording) {
-        console.log("[voice] → stop_recording");
-        voiceWs.send(JSON.stringify({ type: "stop_recording" }));
-        voiceRecording = false;
-    }
-}
-
-// Push-to-talk: press = start recording, release anywhere = stop + transcribe
-micBtn.addEventListener("mousedown", function(e) {
-    e.preventDefault();
-    micPressed = true;
-    startRecording();
-});
-document.addEventListener("mouseup", stopRecording);
-
-micBtn.addEventListener("touchstart", function(e) {
-    e.preventDefault();
-    micPressed = true;
-    startRecording();
-}, { passive: false });
-document.addEventListener("touchend", stopRecording);
-document.addEventListener("touchcancel", stopRecording);
+connectVoiceWs();
 
 muteBtn.addEventListener("click", function() {
     voiceMuted = !voiceMuted;
     muteBtn.textContent = voiceMuted ? "🔇" : "🔊";
     muteBtn.classList.toggle("muted", voiceMuted);
     muteBtn.title = voiceMuted ? "TTS einschalten" : "TTS stumm schalten";
+    if (voiceWs && voiceWs.readyState === WebSocket.OPEN) {
+        voiceWs.send(JSON.stringify({ type: "set_mute", value: voiceMuted }));
+    }
 });

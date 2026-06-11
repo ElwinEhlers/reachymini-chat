@@ -71,6 +71,12 @@ def run(
     # LLM handler
     chat_handler = OllamaChatHandler(deps, conversation_id=_conversation_id)
 
+    # Voice status hub (broadcasts wake-word pipeline state to browser clients)
+    if "/home/sbin/reachy" not in sys.path:
+        sys.path.insert(0, "/home/sbin/reachy")
+    from voice.status_hub import VoiceStatusHub
+    voice_hub = VoiceStatusHub()
+
     # FastAPI routes
     app = settings_app if settings_app else FastAPI()
 
@@ -136,21 +142,29 @@ def run(
 
     @app.websocket("/ws/voice")
     async def voice_ws(websocket: WebSocket) -> None:
+        """Status-/Steuer-Kanal der Wake-Word-Pipeline.
+
+        Server → Browser: {"type":"status","value":<state>},
+                          {"type":"chat","role":...,"text":...}
+        Browser → Server: {"type":"set_mute","value":bool}
+        """
         await websocket.accept()
+        # App-Event-Loop beim ersten Connect am Hub hinterlegen (für Thread-Broadcasts).
+        voice_hub.set_loop(asyncio.get_running_loop())
+        voice_hub.register(websocket)
+        # Aktuellen Zustand sofort senden.
+        await websocket.send_json({"type": "status", "value": voice_hub.state})
         try:
-            if "/home/sbin/reachy" not in sys.path:
-                sys.path.insert(0, "/home/sbin/reachy")
-            from voice.pipeline import VoiceWebSocketPipeline
-            pipeline = VoiceWebSocketPipeline()
-            await pipeline.run(websocket)
+            while True:
+                data = await websocket.receive_json()
+                if data.get("type") == "set_mute":
+                    voice_hub.set_mute(bool(data.get("value")))
         except WebSocketDisconnect:
             pass
         except Exception as e:
             logger.error("Voice WebSocket error: %s", e)
-            try:
-                await websocket.close()
-            except Exception:
-                pass
+        finally:
+            voice_hub.unregister(websocket)
 
     @app.post("/chat")
     async def chat(req: ChatRequest):
@@ -163,6 +177,19 @@ def run(
 
     # Start movement system
     movement_manager.start()
+
+    # Always-listening voice pipeline (wake word "Hey Jarvis" on Reachy USB audio).
+    # Optional: fehlt das Reachy-Audio-Gerät, startet die App ohne Sprache weiter.
+    voice_pipeline = None
+    try:
+        from voice.pipeline import WakeWordPipeline
+        voice_pipeline = WakeWordPipeline(voice_hub)
+        voice_pipeline.start()
+        logger.info("Wake-Word-Pipeline gestartet.")
+    except Exception as _ve:
+        logger.warning(
+            "Wake-Word-Pipeline nicht gestartet (Sprachsteuerung deaktiviert): %s", _ve
+        )
 
     # Wait for stop signal
     if app_stop_event:
@@ -184,6 +211,8 @@ def run(
     except KeyboardInterrupt:
         logger.info("Keyboard interrupt, shutting down...")
     finally:
+        if voice_pipeline is not None:
+            voice_pipeline.stop()
         movement_manager.stop()
         try:
             robot.media.close()
