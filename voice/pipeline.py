@@ -7,6 +7,7 @@ WebSocket pipeline is used by the chat app's /ws/voice endpoint.
 """
 
 import sys
+import time
 import logging
 import asyncio
 import threading
@@ -24,6 +25,9 @@ from openai import AsyncOpenAI
 from voice.stt import STT
 from voice.tts import TTS
 from voice.vad import VAD
+from voice.wakeword import WakeWord
+from voice.audio_device import find_reachy_audio_device
+from voice.status_hub import VoiceStatusHub
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -279,6 +283,135 @@ class VoiceWebSocketPipeline:
 
         except Exception:
             self._recording_stop.set()
+
+
+DEFAULT_CHAT_URL = "http://localhost:8042/chat"
+
+
+class WakeWordPipeline:
+    """Always-listening voice pipeline driven by a wake word.
+
+    Sequentielle Zustandsmaschine in einem eigenen Thread:
+        IDLE → WAKE_WORD → LISTENING → PROCESSING → SPEAKING → IDLE
+
+    Audio läuft komplett über das Reachy-Mini-USB-Audio (Mikro + Lautsprecher).
+    Da die Stufen sequentiell sind, liest während SPEAKING weder Wake-Word noch
+    VAD das Mikrofon → inhärente Echo-Unterdrückung.
+    """
+
+    def __init__(self, hub: VoiceStatusHub, chat_url: str = DEFAULT_CHAT_URL) -> None:
+        self._hub = hub
+        self._chat_url = chat_url
+        from voice.audio_device import MIC_GAIN, maximize_reachy_volume
+        self._device = find_reachy_audio_device()
+        # Lautsprecher + Mikro auf 0 dB (amixer ist nicht persistent → bei jedem Start).
+        maximize_reachy_volume(self._device.card_index)
+        self._wakeword = WakeWord(input_device=self._device.input_index, threshold=0.4)
+        self._vad = VAD(
+            silence_duration_ms=1500,
+            input_device=self._device.input_index,
+            input_gain=MIC_GAIN,
+        )
+        self._stt = STT()
+        self._tts = TTS()
+        self._stop = threading.Event()
+        self._thread: threading.Thread | None = None
+
+    def start(self) -> None:
+        self._thread = threading.Thread(
+            target=self._run_loop, name="WakeWordPipeline", daemon=True
+        )
+        self._thread.start()
+
+    def stop(self) -> None:
+        self._stop.set()
+
+    # -- Zustandsmaschine ---------------------------------------------------
+
+    def _run_loop(self) -> None:
+        logger.info(
+            "WakeWord-Pipeline aktiv (Wake-Word: '%s', Reachy-Audio Mikro=%d / Lautsprecher=%d).",
+            self._wakeword.active_model,
+            self._device.input_index,
+            self._device.output_index,
+        )
+        while not self._stop.is_set():
+            try:
+                self._one_turn()
+            except Exception as exc:
+                logger.error("Fehler in der Voice-Pipeline: %s", exc, exc_info=True)
+                time.sleep(1.0)
+        self._hub.publish("idle")
+        logger.info("WakeWord-Pipeline beendet.")
+
+    def _one_turn(self) -> None:
+        # IDLE → warten auf Wake-Word
+        self._hub.publish("idle")
+        if not self._wakeword.wait_for_wakeword(self._stop) or self._stop.is_set():
+            return
+        self._hub.publish("wake_word")
+
+        # LISTENING → Kommando aufnehmen bis 1,5 s Stille
+        self._hub.publish("listening")
+        audio = self._vad.record_command(self._stop)
+        if audio is None or len(audio) == 0 or self._stop.is_set():
+            return
+
+        # PROCESSING → STT + LLM
+        self._hub.publish("processing")
+        text = self._stt.transcribe(audio)
+        if not text:
+            logger.info("Keine Sprache erkannt.")
+            return
+        logger.info("Nutzer: %s", text)
+        self._hub.broadcast_message("user", text)
+
+        reply = self._send_to_chat(text)
+        if reply:
+            logger.info("Reachy: %s", reply)
+            self._hub.broadcast_message("assistant", reply)
+
+        # SPEAKING → Antwort über Reachy-Lautsprecher (sofern nicht stumm)
+        if reply and not self._hub.muted and not self._stop.is_set():
+            self._hub.publish("speaking")
+            self._tts.speak(reply, output_device=self._device.output_index)
+            time.sleep(0.3)  # kurzer Resthall-Puffer gegen Echo
+
+    # -- Bestehender /chat-Endpunkt (HTTP/SSE) ------------------------------
+
+    def _send_to_chat(self, message: str) -> str:
+        """POST an den bestehenden /chat-Endpunkt, SSE-Stream einsammeln.
+
+        Tool-Marker ([Tool:…]/[Result:…]/[LLM error:…]) werden herausgefiltert,
+        nur der gesprochene Klartext bleibt für die TTS-Ausgabe übrig.
+        """
+        import httpx
+
+        parts: list[str] = []
+        try:
+            with httpx.stream(
+                "POST", self._chat_url, json={"message": message}, timeout=180.0
+            ) as response:
+                for line in response.iter_lines():
+                    if not line.startswith("data: "):
+                        continue
+                    data = line[6:]
+                    if data == "[DONE]" or self._is_marker(data):
+                        continue
+                    parts.append(data)
+        except Exception as exc:
+            logger.error("Fehler beim Aufruf von /chat: %s", exc)
+            return ""
+        return "".join(parts).strip()
+
+    @staticmethod
+    def _is_marker(data: str) -> bool:
+        stripped = data.lstrip()
+        return (
+            stripped.startswith("[Tool:")
+            or stripped.startswith("[Result:")
+            or stripped.startswith("[LLM error:")
+        )
 
 
 if __name__ == "__main__":

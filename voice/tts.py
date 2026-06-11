@@ -1,6 +1,7 @@
 """Text-to-speech using Piper (de_DE-thorsten-high voice)."""
 
 import logging
+from typing import Callable, Optional
 import numpy as np
 import sounddevice as sd
 from pathlib import Path
@@ -52,14 +53,40 @@ class TTS:
         audio = np.concatenate([c.audio_float_array for c in chunks])
         return audio.astype(np.float32), sample_rate
 
-    def speak(self, text: str) -> None:
-        """Synthesize text and play it through the default audio output."""
+    def speak(
+        self,
+        text: str,
+        output_device: int | None = None,
+        on_start: Optional[Callable[[], None]] = None,
+        on_end: Optional[Callable[[], None]] = None,
+    ) -> None:
+        """Synthesize text and play it (blocking) through an audio output.
+
+        output_device: optionaler Index (z.B. Reachy-Lautsprecher); None = Default.
+        on_start/on_end: Callbacks für Echo-Unterdrückung (vor/nach Wiedergabe).
+        Bei gesetztem output_device wird das 22050-Hz-Piper-Audio auf die native
+        Geräte-Rate resampled.
+        """
         if not text.strip():
             return
         audio, sample_rate = self.synthesize(text)
-        logger.debug("Speaking %d samples at %d Hz", len(audio), sample_rate)
-        sd.play(audio, samplerate=sample_rate)
-        sd.wait()
+
+        if output_device is not None:
+            from voice.audio_device import resample
+            device_sr = int(sd.query_devices(output_device)["default_samplerate"])
+            if device_sr != sample_rate:
+                audio = resample(audio, sample_rate, device_sr)
+                sample_rate = device_sr
+
+        logger.debug("Spreche %d Samples @%d Hz (Gerät=%s)", len(audio), sample_rate, output_device)
+        if on_start:
+            on_start()
+        try:
+            sd.play(audio, samplerate=sample_rate, device=output_device)
+            sd.wait()
+        finally:
+            if on_end:
+                on_end()
 
 
 def _maybe_move(base: Path, hf_relative: str, target: Path) -> None:

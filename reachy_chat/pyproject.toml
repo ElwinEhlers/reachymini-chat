@@ -17,6 +17,7 @@ email = "contact@pollen-robotics.com"
 dev = [ "pytest", "pytest-asyncio", "ruff==0.12.0", "mypy==1.18.2", "pre-commit", "types-requests", "python-semantic-release>=10.5.3",]
 
 [project.optional-dependencies]
+voice = [ "openwakeword==0.4.0", "silero-vad>=6.0", "faster-whisper>=1.0", "piper-tts>=1.0", "sounddevice>=0.5",]
 local_vision = [ "torch>=2.1", "transformers==5.0.0rc2", "num2words",]
 yolo_vision = [ "ultralytics", "supervision",]
 mediapipe_vision = [ "mediapipe==0.10.14",]
